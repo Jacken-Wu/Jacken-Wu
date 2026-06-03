@@ -36,7 +36,7 @@
 | `FTP_HOST` | FTP 服务器地址 | `ftp.yourhost.com` |
 | `FTP_USERNAME` | FTP 用户名 | `u123456` |
 | `FTP_PASSWORD` | FTP 密码 | `your-password` |
-| `FTP_TARGET_DIR` | 目标路径 | `/public_html` 或 `/www` 或 `/` |
+| `FTP_TARGET_DIR` | 目标路径 | `/public_html/` 或 `/www/` 或 `/` |
 
 ### 3. （可选）配置 GitHub 用户名
 
