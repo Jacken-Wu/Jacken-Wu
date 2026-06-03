@@ -1,0 +1,42 @@
+name: Update Dashboard
+
+on:
+  schedule:
+    # 每天北京时间 9:00（UTC 1:00）
+    - cron: "0 1 * * *"
+  push:
+    branches: [main]
+  workflow_dispatch:
+    # Allow manual trigger from GitHub UI
+
+jobs:
+  fetch-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      GITHUB_USER: ${{ vars.GITHUB_USER || 'Jacken' }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch data
+        run: python scripts/fetch-data.py
+
+      - name: Deploy to FTP server
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.0
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./site/
+          server-dir: ${{ secrets.FTP_TARGET_DIR || '/' }}
+          exclude: |
+            **/.gitkeep

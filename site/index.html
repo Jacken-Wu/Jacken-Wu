@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Jacken</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ═══════════════ Boot Sequence ═══════════════ -->
+<div id="boot">
+  <div id="boot-content"></div>
+  <div id="boot-cursor">_</div>
+</div>
+
+<!-- ═══════════════ Main Dashboard ═══════════════ -->
+<div id="dashboard" class="hidden">
+
+  <!-- ── Header ── -->
+  <header id="header">
+    <div class="header-left">
+      <span id="greeting" class="greeting"></span>
+      <span id="clock" class="clock"></span>
+    </div>
+    <div class="header-right">
+      <span id="weather-badge" class="weather-badge"></span>
+    </div>
+  </header>
+
+  <!-- ── Stats bar ── -->
+  <div id="stats-bar" class="stats-bar">
+    <div class="stat" id="stat-repos"><span class="stat-value">--</span><span class="stat-label">repos</span></div>
+    <div class="stat" id="stat-stars"><span class="stat-value">--</span><span class="stat-label">stars</span></div>
+    <div class="stat" id="stat-followers"><span class="stat-value">--</span><span class="stat-label">followers</span></div>
+    <div class="stat" id="stat-papers"><span class="stat-value">--</span><span class="stat-label">papers</span></div>
+  </div>
+
+  <!-- ── Cards Grid ── -->
+  <main id="cards" class="cards-grid">
+
+    <!-- GitHub repos -->
+    <section class="card" id="card-github">
+      <div class="card-header">
+        <span class="card-icon">&#xe900;</span>
+        <h2>GitHub</h2>
+        <span class="card-badge" id="github-badge"></span>
+      </div>
+      <div class="card-body" id="github-body">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+      </div>
+    </section>
+
+    <!-- arXiv / Research -->
+    <section class="card" id="card-arxiv">
+      <div class="card-header">
+        <span class="card-icon">&#xe901;</span>
+        <h2>Research Feed</h2>
+        <span class="card-badge" id="arxiv-badge"></span>
+      </div>
+      <div class="card-body" id="arxiv-body">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+      </div>
+    </section>
+
+    <!-- Daily Quote -->
+    <section class="card" id="card-quote">
+      <div class="card-header">
+        <span class="card-icon">&#xe902;</span>
+        <h2>Daily</h2>
+        <span class="card-badge" id="daily-badge"></span>
+      </div>
+      <div class="card-body" id="quote-body">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+      </div>
+    </section>
+
+    <!-- Bird of the Day -->
+    <section class="card" id="card-bird">
+      <div class="card-header">
+        <span class="card-icon">&#xe903;</span>
+        <h2>Bird of the Day</h2>
+        <span class="card-badge" id="bird-badge"></span>
+      </div>
+      <div class="card-body" id="bird-body">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── Footer ── -->
+  <footer id="footer">
+    <span id="footer-updated">waiting for data...</span>
+    <span class="footer-sep">|</span>
+    <span>powered by GitHub Actions</span>
+    <span class="footer-sep">|</span>
+    <span id="footer-ping"></span>
+  </footer>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
