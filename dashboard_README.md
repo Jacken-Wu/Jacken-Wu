@@ -44,7 +44,7 @@
 
 | Variable | 说明 | 默认值 |
 |----------|------|--------|
-| `GITHUB_USER` | 你的 GitHub 用户名 | `Jacken` |
+| `GH_USER` | 你的 GitHub 用户名 | `Jacken-Wu` |
 
 ### 4. 手动触发一次
 

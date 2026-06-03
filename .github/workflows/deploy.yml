@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 10
 
     env:
-      GITHUB_USER: ${{ vars.GITHUB_USER || 'Jacken' }}
+      GH_USER: ${{ vars.GH_USER || 'Jacken' }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:

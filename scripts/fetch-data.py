@@ -67,7 +67,7 @@ def fetch_weather():
 def fetch_github():
     print("[GitHub] Fetching user repos...")
     token = os.environ.get("INPUT_GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
-    username = os.environ.get("INPUT_GITHUB_USER") or os.environ.get("GITHUB_USER") or "Jacken"
+    username = os.environ.get("INPUT_GH_USER") or os.environ.get("GH_USER") or "Jacken-Wu"
     headers = {"Accept": "application/vnd.github.v3+json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
