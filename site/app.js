@@ -146,31 +146,68 @@ function renderGitHub(data) {
     return;
   }
 
-  // Update stats bar
-  $id("stat-repos").querySelector(".stat-value").textContent = data.public_repos ?? "--";
-  $id("stat-stars").querySelector(".stat-value").textContent = data.total_stars ?? "--";
+  const starred = data.starred_repos || [];
+
+  // Update stats bar — reflect starred repos data
+  $id("stat-repos").querySelector(".stat-label").textContent = "starred";
+  $id("stat-repos").querySelector(".stat-value").textContent = starred.length || "--";
+
+  const totalStarredStars = starred.reduce((sum, r) => sum + (r.stars || 0), 0);
+  const starsDisplay = totalStarredStars >= 1000
+    ? (totalStarredStars / 1000).toFixed(1) + "k"
+    : totalStarredStars || "--";
+  $id("stat-stars").querySelector(".stat-value").textContent = starsDisplay;
+
   $id("stat-followers").querySelector(".stat-value").textContent = data.followers ?? "--";
 
-  badge.textContent = `${data.repos?.length || 0} repos`;
+  badge.textContent = `⋆ ${starred.length} · 10 random`;
 
-  if (!data.repos || data.repos.length === 0) {
-    body.innerHTML = '<div class="empty-state">no public repos</div>';
+  if (starred.length === 0) {
+    body.innerHTML = '<div class="empty-state">no starred repos</div>';
     return;
   }
 
+  // Randomly pick 10 from all starred repos
+  const shuffled = [...starred].sort(() => Math.random() - 0.5);
+  const picked = shuffled.slice(0, 10);
+
+  // Sort the 10 by latest release date — newest release first
+  picked.sort((a, b) => {
+    const dateA = a.latest_release || "";
+    const dateB = b.latest_release || "";
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    return dateB.localeCompare(dateA);
+  });
+
+  // Hot detection within the 10: top 3 by stars
+  const byStars = [...picked].sort((a, b) => (b.stars || 0) - (a.stars || 0));
+  const hotCount = Math.min(3, byStars.length);
+  const hotThreshold = hotCount > 0 && hotCount < byStars.length
+    ? byStars[hotCount - 1].stars
+    : Infinity;
+
   let html = "";
-  for (const r of data.repos) {
+  for (const r of picked) {
     const desc = r.description ? `<span class="repo-desc">${escapeHtml(r.description)}</span>` : "";
     const lang = r.language ? `<span class="repo-lang">${escapeHtml(r.language)}</span>` : "";
-    const stars = r.stars > 0 ? `<span class="repo-stars">★ ${r.stars}</span>` : "";
+    const starLabel = r.stars >= 1000 ? (r.stars / 1000).toFixed(1) + "k" : r.stars;
+    const stars = `<span class="repo-stars">★ ${starLabel}</span>`;
+    const hot = r.stars >= hotThreshold ? `<span class="repo-hot" title="热门仓库">🔥</span>` : "";
+    const owner = r.owner ? `<span class="repo-owner">${escapeHtml(r.owner)}</span>` : "";
+    const divider = owner ? `<span class="repo-divider">/</span>` : "";
+    const releaseTag = r.latest_release
+      ? `<span class="repo-release" title="最新 release">▸ ${r.latest_release}</span>`
+      : "";
     html += `
       <div class="repo-item">
         <div>
           <a class="repo-name" href="${r.url}" target="_blank" rel="noopener">
-            ${escapeHtml(r.name)}${desc}
+            ${hot}${owner}${divider}${escapeHtml(r.name)}${desc}
           </a>
         </div>
-        <div>${stars}${lang}</div>
+        <div>${stars}${releaseTag}${lang}</div>
       </div>`;
   }
   body.innerHTML = html;

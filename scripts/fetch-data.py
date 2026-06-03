@@ -10,6 +10,7 @@ import sys
 import urllib.request
 import urllib.error
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 
 CST = timezone(timedelta(hours=8))
@@ -98,6 +99,57 @@ def fetch_github():
         })
         total_stars += r.get("stargazers_count", 0)
 
+    # Fetch all starred repos (paginate up to 100)
+    starred_all = []
+    page = 1
+    max_starred = 100
+    while len(starred_all) < max_starred:
+        starred_page = fetch_json(
+            f"https://api.github.com/users/{username}/starred?per_page=100&page={page}",
+            headers
+        )
+        if not starred_page or len(starred_page) == 0:
+            break
+        starred_all.extend(starred_page)
+        page += 1
+    print(f"  Found {len(starred_all)} starred repos total")
+    starred = starred_all[:max_starred]
+
+    starred_list = []
+    for r in starred:
+        starred_list.append({
+            "name": r.get("name", "?"),
+            "owner": r.get("owner", {}).get("login", ""),
+            "description": r.get("description") or "",
+            "language": r.get("language") or "",
+            "stars": r.get("stargazers_count", 0),
+            "updated_at": r.get("pushed_at", "")[:10] if r.get("pushed_at") else "",
+            "url": r.get("html_url", ""),
+            "latest_release": "",
+        })
+
+    # Fetch latest release date for each starred repo (parallel)
+    print(f"  Fetching release dates for {len(starred_list)} starred repos (parallel, 10 workers)...")
+
+    def fetch_release(idx, repo):
+        owner = repo["owner"]
+        name = repo["name"]
+        if not owner or not name:
+            return idx, ""
+        release_url = f"https://api.github.com/repos/{owner}/{name}/releases/latest"
+        release_data = fetch_json(release_url, headers)
+        if release_data and "published_at" in release_data:
+            return idx, release_data["published_at"][:10]
+        return idx, ""
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(fetch_release, i, repo): i for i, repo in enumerate(starred_list)}
+        for future in as_completed(futures):
+            idx, release_date = future.result()
+            starred_list[idx]["latest_release"] = release_date
+            r = starred_list[idx]
+            print(f"    {r['owner']}/{r['name']}: {release_date or 'no release'}")
+
     result = {
         "username": username,
         "avatar_url": user_data.get("avatar_url", ""),
@@ -106,6 +158,7 @@ def fetch_github():
         "following": user_data.get("following", 0),
         "total_stars": total_stars,
         "repos": repo_list,
+        "starred_repos": starred_list,
         "updated_at": datetime.now(CST).isoformat(),
     }
     safe_write("github.json", result)
@@ -113,66 +166,87 @@ def fetch_github():
 
 # ── arXiv ────────────────────────────────────────────────────────────
 def fetch_arxiv():
-    print("[arXiv] Fetching recent papers...")
+    print("[arXiv] Fetching category RSS feeds...")
 
-    queries = [
-        'all:"tube+MPC"+OR+all:"tube-based+MPC"',
-        'all:"bus+bunching"+OR+all:"transit+signal+priority"',
-        'all:"mixed+traffic"+OR+all:"connected+vehicle"+AND+all:"control"',
-        'all:"safe+MARL"+OR+all:"safety+critical+reinforcement+learning"',
-        'all:"vehicle+infrastructure+cooperation"+OR+all:"CAV+platoon"',
+    headers = {"User-Agent": "PersonalDashboard/1.0"}
+    # 相关分类的 RSS 订阅
+    categories = ["cs.SY", "cs.MA", "cs.RO", "cs.LG", "eess.SY"]
+    keywords = [
+        "bus", "bunching", "transit",
+        "mpc", "model predictive",
+        "connected vehicle", "cav", "v2x",
+        "mixed traffic", "autonomous",
+        "marl", "multi-agent", "reinforcement",
+        "safety critical", "safe control",
+        "vehicle infrastructure", "platoon",
+        "traffic signal", "tube",
     ]
+
     all_papers = []
     seen_ids = set()
 
-    for query in queries:
-        url = (
-            f"http://export.arxiv.org/api/query?"
-            f"search_query={query}&start=0&max_results=4&sortBy=submittedDate&sortOrder=descending"
-        )
-        xml_text = fetch_text(url)
-        if not xml_text:
+    for cat in categories:
+        url = f"https://rss.arxiv.org/rss/{cat}"
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                xml_text = resp.read().decode()
+        except Exception as e:
+            print(f"  [WARN] {cat} -> {e}")
             continue
 
         try:
             root = ET.fromstring(xml_text)
-            ns = {"a": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
-            for entry in root.findall("a:entry", ns):
-                paper_id = entry.find("a:id", ns).text.split("/")[-1].split("v")[0]
-                if paper_id in seen_ids:
-                    continue
-                seen_ids.add(paper_id)
+            # RSS: channel → item[]
+            ns = {"atom": "http://www.w3.org/2005/Atom"}
+            for item in root.findall(".//item"):
+                title = item.findtext("title", "").replace("\n", " ").strip()
+                link = item.findtext("link", "")
+                desc = item.findtext("description", "")
+                pub_date = item.findtext("pubDate", "")[:10]
 
-                title = entry.find("a:title", ns).text.replace("\n", " ").strip()
-                published = entry.find("a:published", ns).text[:10]
-                summary = entry.find("a:summary", ns).text.replace("\n", " ").strip()[:200]
-                authors_el = entry.findall("a:author", ns)
-                authors = ", ".join(
-                    a.find("a:name", ns).text.split()[-1] for a in authors_el[:3]
-                )
-                if len(authors_el) > 3:
-                    authors += " et al."
-                link = entry.find("a:id", ns).text
+                # 提取 arxiv ID
+                paper_id = link.split("/")[-1].split("v")[0] if link else ""
+                if not paper_id or paper_id in seen_ids:
+                    continue
+
+                # 关键词过滤
+                text_lower = (title + " " + desc).lower()
+                if not any(kw in text_lower for kw in keywords):
+                    continue
+
+                seen_ids.add(paper_id)
+                # 清理 title（arXiv RSS 标题以 "Title: " 开头）
+                clean_title = title.replace("Title: ", "", 1).strip()
+
+                # 从 description 里提取作者
+                author_match = __import__("re").search(r"Authors?: (.+?)(?:\n|&lt|$)", desc)
+                authors = author_match.group(1).strip() if author_match else ""
+                if authors:
+                    author_list = [a.strip().split()[-1] for a in authors.split(",")[:3] if a.strip()]
+                    author_str = ", ".join(author_list) if author_list else ""
+                    if len(authors.split(",")) > 3:
+                        author_str += " et al."
+                else:
+                    author_str = ""
 
                 all_papers.append({
                     "id": paper_id,
-                    "title": title,
-                    "authors": authors,
-                    "published": published,
+                    "title": clean_title[:200],
+                    "authors": author_str,
+                    "published": pub_date,
                     "link": link,
-                    "summary": summary,
+                    "summary": "",
                 })
+
         except ET.ParseError as e:
-            print(f"  [WARN] XML parse error: {e}")
+            print(f"  [WARN] {cat} XML parse error: {e}")
             continue
 
-    # sort by published date descending
     all_papers.sort(key=lambda p: p["published"], reverse=True)
-    result = {
-        "papers": all_papers[:10],
-        "updated_at": datetime.now(CST).isoformat(),
-    }
+    result = {"papers": all_papers[:10], "updated_at": datetime.now(CST).isoformat()}
     safe_write("arxiv.json", result)
+    print(f"  [OK] {len(all_papers[:10])} papers matched from {len(categories)} categories")
 
 
 # ── Daily (quote + bird) ──────────────────────────────────────────────

@@ -181,6 +181,7 @@ body {
   border-radius: 8px;
 }
 .card-body { padding: 0.8rem 1rem 1rem; min-height: 80px; }
+#github-body { max-height: 480px; overflow-y: auto; }
 
 
 /* Loading dots */
@@ -259,6 +260,29 @@ body {
   font-size: 0.75rem;
   color: var(--accent-yellow);
   white-space: nowrap;
+}
+.repo-owner {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+.repo-divider {
+  color: var(--text-dark);
+  margin: 0 0.1rem;
+}
+.repo-hot {
+  margin-right: 0.2rem;
+  font-size: 0.8rem;
+}
+.repo-release {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--accent-green);
+  background: rgba(63,185,80,0.08);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.4rem;
 }
 .repo-lang {
   display: inline-block;
